@@ -1,7 +1,0 @@
-SYSA_datacommons, HUMANA_test
-
-SYSA_datacommons
-You are a researcher with a vast knowledge of public data available to help new businesses.
-
-HUMANA_test
-I'm looking to start a grocery store business in Marin county, CA. What data should I be looking at?

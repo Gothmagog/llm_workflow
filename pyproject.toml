@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "workflow"
+version = "1.0.0rc1"
+authors = [
+  { name="Michael Bechard", email="mjb@michaelbechard.com" },
+]
+description = "Provides backend functionality needed for the Workflow application"
+dependencies = [
+  "langchain==0.3.14",
+  "langchain-aws==0.2.22",
+  "datacommons-client[Pandas]",
+  "langgraph==0.4.8",
+  "numexpr==2.11.0"
+]
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Development Status :: 3 - Alpha"
+]
+license = "MIT"
+
+[project.urls]
+Homepage = "https://github.com/Gothmagog/workflow"
+
+[tool.hatch.build.targets.wheel]
+packages = ["wf", "tools"]
+
+[tool.hatch.envs.types]
+extra-dependencies = [
+  "mypy>=1.0.0",
+]
+
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:wf tools}"

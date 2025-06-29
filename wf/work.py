@@ -76,7 +76,7 @@ def _execute(step, args=None):
     if isinstance(step, types.FunctionType):
         return step(args)
     elif type(step) is str and type(args) is str:
-        return do_agent(step, args)
+        return do_agent(step, args, True)
     elif type(step) is str:
         return do_inference(step)
     raise Exception("Wrong step type")
@@ -148,7 +148,7 @@ def do_inference(inf_id):
     
     return ret
 
-def do_agent(agent_id, inf_id):
+def do_agent(agent_id, inf_id, remove_func_calls):
     log.info(f"Invoking agent {agent_id} with inference {inf_id}")
     ret = ""
 
@@ -184,5 +184,38 @@ def do_agent(agent_id, inf_id):
     messages = resp["messages"]
     for msg in messages:
         log.debug(f"  {msg.type}: '{msg.content}'")
-    return messages[-1].content
+    ret = messages[-1].content
+    if remove_func_calls:
+        ret = purge_function_calls_from_output(ret)
+    return ret
     
+def purge_function_calls_from_output(output_str):
+    edited = output_str
+    while True:
+        prev_version = edited
+        edited = snip_from_text("<function_calls>", "</function_calls>", prev_version)
+        if prev_version == edited:
+            break
+    return edited
+
+def snip_from_text(start, end, text, inclusive=True):
+    if not text or len(text) == 0:
+        return text
+    start_idx = -1
+    if type(start) is str:
+        start_idx = text.find(start)
+        if not inclusive and start_idx != -1:
+            start_idx += len(start)
+    end_idx = -1
+    if type(end) is str:
+        end_idx = text.find(end)
+        if inclusive and end_idx != -1:
+            end_idx += len(end)
+    # print(f"{start_idx}, {end_idx}")
+    if start_idx == end_idx:
+        return text
+    elif start_idx == -1:
+        return text[end_idx:]
+    elif end_idx == -1:
+        return text[:start_idx]
+    return text[:start_idx] + text[end_idx:]

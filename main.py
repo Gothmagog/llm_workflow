@@ -29,11 +29,12 @@ formatter = logging.Formatter(fmt="%(asctime)s %(thread)d %(levelname)s: %(messa
 handler = logging.StreamHandler(stream=sys.stdout)
 def setup_log(log, level):
     log.setLevel(level)
+    log.propagate = False
     handler.setLevel(level)
     handler.setFormatter(formatter)
     log.addHandler(handler)
     
-# setup_log(logging.getLogger(), logging.INFO)
+setup_log(logging.getLogger(), logging.INFO)
 log = logging.getLogger("main")
 setup_log(log, logging.DEBUG)
 

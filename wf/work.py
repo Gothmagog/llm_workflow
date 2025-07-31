@@ -1,3 +1,4 @@
+import time
 import types
 import logging
 import threading
@@ -14,12 +15,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langgraph.prebuilt import create_react_agent
 from wf.prompt_config import PromptsConfig
 from wf.state import State
-from tools.datacommons import (
-    explore_stat_var_groups_tool,
-    list_variables_tool,
-    get_county_observations_tool
-)
-from tools.calculator import calculator_tool
+from tools.screenwriter import ask_storyworld_question_tool
 
 prompts = None
 num_threads = 2
@@ -75,7 +71,7 @@ def execute(step, args=None):
 def _execute(step, args=None):
     if isinstance(step, types.FunctionType):
         return step(args)
-    elif type(step) is str and type(args) is str:
+    elif type(step) is str and type(args) is dict:
         return do_agent(step, args, True)
     elif type(step) is str:
         return do_inference(step)
@@ -90,7 +86,7 @@ def _thread_func(input_queue, output_queue):
                 ret = _execute(step, args)
                 output_queue.put((step, ret))
         except Exception as ex:
-            log.error(f"Exception in thread {threading.get_ident()}: {ex}")
+            log.error(f"Exception in thread {threading.get_ident()} executing step {step}: {ex}")
         finally:
             input_queue.task_done()
     log.debug(f"Thread {threading.get_ident()} exiting")
@@ -144,35 +140,34 @@ def do_inference(inf_id):
     chain = p | llm | out_parse
 
     # Inference
-    ret = chain.invoke(state.get_dict())
-    
+    count = 0
+    while count < 10:
+        try:
+            ret = chain.invoke(state.get_dict())
+            break
+        except llm.client.exceptions.ValidationException:
+            log.error(ex)
+            raise ex
+        except Exception as ex:
+            log.warning(f"Retrying... ({str(ex)[:40]}...)")
+            time.sleep(5)
+        finally:
+            count += 1
     return ret
 
-def do_agent(agent_id, inf_id, remove_func_calls):
-    log.info(f"Invoking agent {agent_id} with inference {inf_id}")
+def do_agent(agent_id, inf_args, remove_func_calls):
+    log.info(f"Invoking agent {agent_id} with inference {inf_args['prompt']}")
     ret = ""
 
     # Setup
     sys_msg = SystemMessagePromptTemplate.from_template(prompts.get(f"SYSA_{agent_id}", True))
     sys_msg = sys_msg.format(**state.get_dict())
-    human_msg = HumanMessagePromptTemplate.from_template(prompts.get(f"HUMANA_{inf_id}"))
+    human_msg = HumanMessagePromptTemplate.from_template(prompts.get(f"HUMANA_{inf_args['prompt']}"))
     human_msg = human_msg.format(**state.get_dict())
 
-    # Tool selection based on agent ID
-    tools = {
-        "researcher": [
-            explore_stat_var_groups_tool,
-            list_variables_tool,
-            get_county_observations_tool,
-            calculator_tool
-        ],
-        "cpa": [
-            calculator_tool
-        ]
-    }
-
     # Create agent
-    agent = create_react_agent(llm, tools[agent_id], prompt=sys_msg.content)
+    log.debug(inf_args["tools"][0])
+    agent = create_react_agent(llm, inf_args["tools"], prompt=sys_msg)
 
     # Invoke agent
     max_iterations = 10

@@ -15,7 +15,6 @@ from langchain_core.output_parsers import StrOutputParser
 from langgraph.prebuilt import create_react_agent
 from wf.prompt_config import PromptsConfig
 from wf.state import State
-from tools.screenwriter import ask_storyworld_question_tool
 
 prompts = None
 num_threads = 2
@@ -58,12 +57,12 @@ def get_state(key):
     return state[key]
 
 def execute(step, args=None):
-    if (type(step) is str and type(args) is str and args in state) or (type(step) is str and step in state):
+    if (type(step) is str and type(args) is dict and args["prompt"] in state) or (type(step) is str and step in state):
         return
     ret = _execute(step, args)
-    if type(step) is str and type(args) is str:
+    if type(step) is str and type(args) is dict:
         # Agent response, 2nd arg is the inference ID
-        state[args] = ret
+        state[args["prompt"]] = ret
     elif type(step) is str:
         # Regular inference response, step is the inference ID
         state[step] = ret
@@ -166,7 +165,6 @@ def do_agent(agent_id, inf_args, remove_func_calls):
     human_msg = human_msg.format(**state.get_dict())
 
     # Create agent
-    log.debug(inf_args["tools"][0])
     agent = create_react_agent(llm, inf_args["tools"], prompt=sys_msg)
 
     # Invoke agent

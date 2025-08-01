@@ -25,7 +25,7 @@ args = parser.parse_args()
 
 import wf.work
 
-formatter = logging.Formatter(fmt="%(asctime)s %(thread)d %(levelname)s: %(message)s", datefmt="%H:%M:%S")
+formatter = logging.Formatter(fmt="%(asctime)s %(thread)d %(name)s %(levelname)s: %(message)s", datefmt="%H:%M:%S")
 handler = logging.StreamHandler(stream=sys.stdout)
 def setup_log(log, level):
     log.setLevel(level)
@@ -64,6 +64,10 @@ def main():
     module = importlib.import_module(f"definitions.{args.workflow}.main")
 
     try:
+        if hasattr(module, "init"):
+            log.info("Initializing workflow")
+            module.init(aws_profile)
+            
         log.info("Executing workflow")
         module.do_wf()
         log.info("Done!")
